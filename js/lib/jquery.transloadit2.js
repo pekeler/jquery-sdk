@@ -92,6 +92,7 @@
     this.pollRetries   = 0;
     this.seq           = 0;
     this.started       = false;
+    this.uploading     = false;
     this.assembly      = null;
     this.params        = null;
 
@@ -282,7 +283,10 @@
 
     this.$iframe = $('<iframe id="transloadit-'+this.assemblyId+'" name="transloadit-'+this.assemblyId+'"/>')
       .appendTo('body')
-      .hide();
+      .hide()
+      .on("load", function() {
+        self.uploading = false;
+      });
 
     if (this._options.formData) {
       this._options.formData.append("params", this.$form.find("input[name=params]").val());
@@ -348,6 +352,7 @@
       });
 
       this.$uploadForm.submit();
+      this.uploading = true;
     }
 
     this.lastPoll = +new Date();
@@ -571,19 +576,21 @@
           return;
         }
 
-        self.pollRetries++;
-        if (self.pollRetries > self._options.pollConnectionRetries) {
-          document.title = self.documentTitle;
-          self.ended = true;
-          var err = {
-            error   : 'CONNECTION_ERROR',
-            message : 'There was a problem connecting to the upload server',
-            reason  : 'JSONP request status: '+status,
-            url     : url
-          };
-          self.renderError(err);
-          self._options.onError(err);
-          return;
+        if (!self.uploading) {
+          self.pollRetries++;
+          if (self.pollRetries > self._options.pollConnectionRetries) {
+            document.title = self.documentTitle;
+            self.ended = true;
+            var err = {
+              error   : 'CONNECTION_ERROR',
+              message : 'There was a problem connecting to the upload server',
+              reason  : 'JSONP request status: '+status,
+              url     : url
+            };
+            self.renderError(err);
+            self._options.onError(err);
+            return;
+          }
         }
 
         setTimeout(function() {
